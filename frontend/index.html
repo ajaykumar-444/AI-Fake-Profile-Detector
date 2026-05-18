@@ -76,22 +76,31 @@
             background: #111827;
             padding: 20px;
             border-radius: 15px;
+            border: 1px solid #1e293b;
         }
 
         .fake {
-            color: red;
+            color: #ef4444; /* Red */
         }
 
         .suspicious {
-            color: orange;
+            color: #f97316; /* Orange */
         }
 
         .real {
-            color: lightgreen;
+            color: #22c55e; /* Green */
+        }
+
+        .score-box {
+            margin-top: 15px;
+            background: #1e293b;
+            padding: 10px;
+            border-radius: 8px;
         }
 
         .score {
-            margin-top: 10px;
+            margin-top: 5px;
+            font-size: 15px;
         }
 
         .reason {
@@ -104,8 +113,10 @@
             background: #1e293b;
             padding: 15px;
             border-radius: 10px;
-            max-height: 200px;
+            max-height: 150px;
             overflow-y: auto;
+            font-size: 14px;
+            border-left: 3px solid cyan;
         }
     </style>
 </head>
@@ -140,8 +151,8 @@
 
         async function scanProfile() {
             const fileInput = document.getElementById('imageInput');
+            const resultDiv = document.getElementById('result');
             
-            // ఒకవేళ యూజర్ ఫైల్ సెలెక్ట్ చేయకపోతే అలర్ట్ చూపిస్తుంది
             if (!fileInput || fileInput.files.length === 0) {
                 alert("Please select an image file first!");
                 return;
@@ -151,11 +162,10 @@
             const formData = new FormData();
             formData.append('image', file);
 
-            // స్కానింగ్ స్టేటస్ చూపెట్టడం
-            document.getElementById('result').innerHTML = '<h3>Scanning Profile...</h3>';
+            // స్కానింగ్ లోడింగ్ స్టేటస్
+            resultDiv.innerHTML = '<h3 style="text-align:center; margin-top:20px; color:cyan;">Scanning Profile... Please wait...</h3>';
 
             try {
-                // రైల్వే URL తర్వాత ఇక్కడ కామా (,) యాడ్ చేసాను
                 const response = await fetch(
                     'https://ai-fake-profile-detector-production.up.railway.app/scan-profile',
                     {
@@ -170,41 +180,48 @@
 
                 const data = await response.json();
 
-                let className = '';
+                // కరెక్ట్ క్లాస్ నేమ్ సెలెక్ట్ చేయడం
+                let className = 'real';
                 if (data.classification === 'FAKE PROFILE') {
                     className = 'fake';
                 } else if (data.classification === 'SUSPICIOUS') {
                     className = 'suspicious';
-                } else {
-                    className = 'real';
                 }
 
-                // డైనమిక్ గా రిజల్ట్స్ ని స్క్రీన్ మీద ప్రింట్ చేయడం
-                document.getElementById('result').innerHTML = `
+                // డైనమిక్ అవుట్‌పుట్ - అన్ని స్కోర్లను క్లియర్ గా చూపిస్తుంది
+                resultDiv.innerHTML = `
                     <div class="result">
-                        <h2 class="${className}">
+                        <h2 class="${className}" style="text-align: center; font-size: 24px;">
                             ${data.classification || 'UNKNOWN'}
                         </h2>
-                        <h3 class="score">
-                            Risk Score: ${data.risk_score !== undefined ? data.risk_score : 'N/A'}
-                        </h3>
-                        <div class="reason">
-                            <h3>Detection Reasons:</h3>
-                            <p>${data.reasons && data.reasons.length > 0 ? data.reasons.join('<br>') : 'No specific reasons found.'}</p>
+                        
+                        <div class="score-box">
+                            <h4 class="score" style="color: cyan;">Total Risk Score: ${data.risk_score !== undefined ? data.risk_score : 'N/A'}%</h4>
+                            <p class="score" style="font-size:13px; color:#94a3b8;">• Metadata/Rule Score: ${data.rule_score !== undefined ? data.rule_score : '0'}%</p>
+                            <p class="score" style="font-size:13px; color:#94a3b8;">• Deep Learning AI Score: ${data.ai_score !== undefined ? data.ai_score : '0'}%</p>
                         </div>
+
+                        <div class="reason">
+                            <h3 style="color: #cbd5e1; font-size: 16px; margin-bottom: 5px;">Detection Reasons:</h3>
+                            <p style="font-size: 14px; color: #94a3b8;">
+                                ${data.reasons && data.reasons.length > 0 ? data.reasons.join('<br>• ') : 'No suspicious patterns detected.'}
+                            </p>
+                        </div>
+
                         <div class="ocr">
-                            <h3>Extracted OCR Text:</h3>
-                            <p>${data.extracted_text || 'No text extracted.'}</p>
+                            <h3 style="color: cyan; font-size: 15px; margin-bottom: 5px;">Extracted Text (OCR):</h3>
+                            <p style="color: #cbd5e1; font-style: italic;">"${data.extracted_text || 'No text found in screenshot.'}"</p>
                         </div>
                     </div>
                 `;
 
             } catch (error) {
                 console.error("Error during scan:", error);
-                document.getElementById('result').innerHTML = `
-                    <div class="result" style="border: 1px solid red;">
-                        <h3 style="color: red;">Failed to Connect</h3>
-                        <p style="margin-top: 10px; font-size: 14px;">${error.message}</p>
+                resultDiv.innerHTML = `
+                    <div class="result" style="border: 1px solid #ef4444; background: #1e1b4b;">
+                        <h3 style="color: #ef4444;">Failed to Connect</h3>
+                        <p style="margin-top: 10px; font-size: 14px; color: #fca5a5;">${error.message}</p>
+                        <p style="margin-top: 5px; font-size: 12px; color: #94a3b8;">Tip: Make sure Railway deployment is ACTIVE.</p>
                     </div>
                 `;
             }
