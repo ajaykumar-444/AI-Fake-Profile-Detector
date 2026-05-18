@@ -9,7 +9,7 @@ import os
 import pickle
 
 app = Flask(__name__)
-CORS(app, resources={r"/": {"origins": ""}})
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # TESSERACT PATH CONFIGURATION
 # రైల్వే సర్వర్ లో ఉంటే క్లౌడ్ పాత్ తీసుకుంటుంది, లోకల్ లో ఉంటే విండోస్ పాత్ తీసుకుంటుంది
