@@ -11,8 +11,13 @@ import pickle
 app = Flask(__name__)
 CORS(app)
 
-# TESSERACT PATH
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# TESSERACT PATH CONFIGURATION
+# రైల్వే సర్వర్ లో ఉంటే క్లౌడ్ పాత్ తీసుకుంటుంది, లోకల్ లో ఉంటే విండోస్ పాత్ తీసుకుంటుంది
+tesseract_env_path = os.getenv('TESSERACT_CMD')
+if tesseract_env_path:
+    pytesseract.pytesseract.tesseract_cmd = tesseract_env_path
+else:
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 # LOAD AI MODEL
 model = pickle.load(open('fake_profile_model.pkl', 'rb'))
