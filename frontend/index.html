@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <title>AI Fake Profile Detector</title>
+
+    <style>
+
+        * {
+
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial;
+        }
+
+        body {
+
+            background: #020617;
+            color: white;
+            min-height: 100vh;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+
+            width: 450px;
+            background: #0f172a;
+
+            padding: 30px;
+
+            border-radius: 20px;
+
+            box-shadow: 0 0 25px cyan;
+        }
+
+        h1 {
+
+            text-align: center;
+            margin-bottom: 25px;
+            color: cyan;
+        }
+
+        .upload-box {
+
+            border: 2px dashed cyan;
+
+            padding: 20px;
+
+            text-align: center;
+
+            border-radius: 15px;
+
+            margin-bottom: 20px;
+        }
+
+        input {
+
+            margin-top: 10px;
+        }
+
+        img {
+
+            width: 100%;
+            margin-top: 20px;
+
+            border-radius: 15px;
+
+            display: none;
+        }
+
+        button {
+
+            width: 100%;
+
+            padding: 15px;
+
+            border: none;
+
+            border-radius: 10px;
+
+            background: cyan;
+
+            color: black;
+
+            font-size: 18px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+
+            transition: 0.3s;
+        }
+
+        button:hover {
+
+            transform: scale(1.03);
+
+            background: #67e8f9;
+        }
+
+        .result {
+
+            margin-top: 25px;
+
+            background: #111827;
+
+            padding: 20px;
+
+            border-radius: 15px;
+        }
+
+        .fake {
+
+            color: red;
+        }
+
+        .suspicious {
+
+            color: orange;
+        }
+
+        .real {
+
+            color: lightgreen;
+        }
+
+        .score {
+
+            margin-top: 10px;
+        }
+
+        .reason {
+
+            margin-top: 15px;
+            line-height: 1.6;
+        }
+
+        .ocr {
+
+            margin-top: 20px;
+
+            background: #1e293b;
+
+            padding: 15px;
+
+            border-radius: 10px;
+
+            max-height: 200px;
+
+            overflow-y: auto;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>AI Fake Profile Detector</h1>
+
+        <div class="upload-box">
+
+            <h3>Upload Profile Screenshot</h3>
+
+            <input type="file"
+                   id="imageInput"
+                   accept="image/*"
+                   onchange="previewImage(event)">
+        </div>
+
+        <img id="preview">
+
+        <button onclick="scanProfile()">
+
+            Scan Profile
+
+        </button>
+
+        <div id="result"></div>
+
+    </div>
+
+    <script>
+
+        function previewImage(event) {
+
+            const preview =
+                document.getElementById('preview');
+
+            preview.src =
+                URL.createObjectURL(event.target.files[0]);
+
+            preview.style.display = 'block';
+        }
+
+        async function scanProfile() {
+
+            const fileInput =
+                document.getElementById('imageInput');
+
+            const file = fileInput.files[0];
+
+            const formData = new FormData();
+
+            formData.append('image', file);
+
+            document.getElementById('result').innerHTML =
+
+                '<h3>Scanning Profile...</h3>';
+
+            const response = await fetch(
+
+                'http://127.0.0.1:5000/scan-profile',
+
+                {
+
+                    method: 'POST',
+
+                    body: formData
+                }
+            );
+
+            const data = await response.json();
+
+            let className = '';
+
+            if (data.classification === 'FAKE PROFILE') {
+
+                className = 'fake';
+
+            }
+
+            else if (
+                data.classification === 'SUSPICIOUS'
+            ) {
+
+                className = 'suspicious';
+
+            }
+
+            else {
+
+                className = 'real';
+            }
+
+            document.getElementById('result').innerHTML = `
+
+                <div class="result">
+
+                    <h2 class="${className}">
+
+                        ${data.classification}
+
+                    </h2>
+
+                    <h3 class="score">
+
+                        Risk Score:
+                        ${data.risk_score}
+
+                    </h3>
+
+                    <div class="reason">
+
+                        <h3>Detection Reasons:</h3>
+
+                        ${data.reasons.join('<br>')}
+
+                    </div>
+
+                    <div class="ocr">
+
+                        <h3>Extracted OCR Text:</h3>
+
+                        <p>${data.extracted_text}</p>
+
+                    </div>
+
+                </div>
+            `;
+        }
+
+    </script>
+
+</body>
+
+</html>
