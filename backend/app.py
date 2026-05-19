@@ -1,3 +1,4 @@
+'''
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -268,3 +269,16 @@ def scan_profile():
 # -----------------------------
 # MAIN
 # -----------------------------
+'''
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+@app.route('/')
+
+def home():
+
+    return jsonify({
+
+        'message': 'Railway Backend Working'
+    })
