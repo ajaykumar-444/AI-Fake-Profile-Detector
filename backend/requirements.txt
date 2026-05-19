@@ -1,9 +1,2 @@
 flask
-flask-cors
-pytesseract
-pillow
-opencv-python-headless
-scikit-learn
-pandas
 gunicorn
-numpy
