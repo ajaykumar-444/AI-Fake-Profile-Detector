@@ -9,26 +9,60 @@ import os
 import pickle
 
 app = Flask(__name__)
-# CORS origins ని "*" కి పక్కాగా సెట్ చేసాం
+
+# ENABLE CORS
 CORS(app)
 
-# TESSERACT PATH CONFIGURATION
-# రైల్వే సర్వర్ లో ఉంటే క్లౌడ్ పాత్ తీసుకుంటుంది, లోకల్ లో ఉంటే విండోస్ పాత్ తీసుకుంటుంది
+# -----------------------------
+# TESSERACT CONFIGURATION
+# -----------------------------
+
 tesseract_env_path = os.getenv('TESSERACT_CMD')
+
 if tesseract_env_path:
+
     pytesseract.pytesseract.tesseract_cmd = tesseract_env_path
+
 else:
-    # ఒకవేళ ఎన్విరాన్‌మెంట్ వేరియబుల్ మిస్ అయితే లైనక్స్ / విండోస్ ఆటో-Fallback లాజిక్
+
     if os.name == 'nt':
+
         pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
     else:
+
         pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
-# LOAD AI MODEL
-model = pickle.load(open('fake_profile_model.pkl', 'rb'))
-vectorizer = pickle.load(open('vectorizer.pkl', 'rb'))
+# -----------------------------
+# LOAD AI MODEL SAFELY
+# -----------------------------
+
+try:
+
+    model = pickle.load(
+        open('fake_profile_model.pkl', 'rb')
+    )
+
+    vectorizer = pickle.load(
+        open('vectorizer.pkl', 'rb')
+    )
+
+    print("AI model loaded successfully")
+
+except Exception as e:
+
+    print("MODEL LOADING ERROR:", e)
+
+    model = None
+
+    vectorizer = None
+
+# -----------------------------
+# SPAM KEYWORDS
+# -----------------------------
 
 spam_keywords = [
+
     'crypto',
     'free money',
     'giveaway',
@@ -39,93 +73,209 @@ spam_keywords = [
     'dm now'
 ]
 
+# -----------------------------
+# HOME ROUTE
+# -----------------------------
+
 @app.route('/')
+
 def home():
+
     return jsonify({
+
         'message': 'Hybrid Fake Profile Detector Running'
     })
 
+# -----------------------------
+# PROFILE SCAN ROUTE
+# -----------------------------
+
 @app.route('/scan-profile', methods=['POST'])
+
 def scan_profile():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image file uploaded'}), 400
-        
-    file = request.files['image']
 
-    # CREATE UPLOADS FOLDER
-    if not os.path.exists('uploads'):
-        os.makedirs('uploads')
+    try:
 
-    path = os.path.join('uploads', file.filename)
-    file.save(path)
+        # CHECK IMAGE
+        if 'image' not in request.files:
 
-    # OCR EXTRACTION
-    image = Image.open(path)
-    extracted_text = pytesseract.image_to_string(image)
-    text_lower = extracted_text.lower()
+            return jsonify({
 
-    # -----------------------------
-    # RULE-BASED ANALYSIS
-    # -----------------------------
-    rule_score = 0
-    reasons = []
+                'error': 'No image file uploaded'
+            }), 400
 
-    # USERNAME CHECK
-    usernames = re.findall(r'@\w+', extracted_text)
-    for username in usernames:
-        if len(re.findall(r'\d', username)) > 4:
-            rule_score += 20
-            reasons.append('Suspicious username pattern detected')
+        file = request.files['image']
 
-    # SPAM KEYWORDS
-    for word in spam_keywords:
-        if word in text_lower:
-            rule_score += 20
-            reasons.append(f'Suspicious keyword detected: {word}')
+        # CREATE UPLOADS FOLDER
+        if not os.path.exists('uploads'):
 
-    # FOLLOWERS CHECK
-    follower_match = re.search(r'(\d+)\sfollowers', text_lower)
-    if follower_match:
-        followers = int(follower_match.group(1))
-        if followers < 20:
-            rule_score += 15
-            reasons.append('Very low followers count')
+            os.makedirs('uploads')
 
-    # -----------------------------
-    # AI ANALYSIS
-    # -----------------------------
-    transformed_text = vectorizer.transform([text_lower])
-    prediction = model.predict(transformed_text)[0]
-    probability = model.predict_proba(transformed_text)[0]
-    ai_score = round(max(probability) * 100, 2)
+        path = os.path.join('uploads', file.filename)
 
-    reasons.append('AI NLP profile analysis completed')
+        file.save(path)
 
-    # -----------------------------
-    # HYBRID SCORE
-    # -----------------------------
-    final_score = (rule_score + ai_score) / 2
+        # -----------------------------
+        # OCR EXTRACTION
+        # -----------------------------
 
-    # -----------------------------
-    # FINAL CLASSIFICATION
-    # -----------------------------
-    if final_score >= 55:
-        classification = 'FAKE PROFILE'
-    elif final_score >= 30:
-        classification = 'SUSPICIOUS'
-    else:
-        classification = 'REAL PROFILE'
+        image = Image.open(path)
 
-    return jsonify({
-        'classification': classification,
-        'risk_score': round(final_score, 2),
-        'rule_score': rule_score,
-        'ai_score': ai_score,
-        'reasons': reasons,
-        'extracted_text': extracted_text
-    })
+        extracted_text = pytesseract.image_to_string(image)
+
+        text_lower = extracted_text.lower()
+
+        # -----------------------------
+        # RULE-BASED ANALYSIS
+        # -----------------------------
+
+        rule_score = 0
+
+        reasons = []
+
+        # USERNAME CHECK
+        usernames = re.findall(r'@\w+', extracted_text)
+
+        for username in usernames:
+
+            if len(re.findall(r'\d', username)) > 4:
+
+                rule_score += 20
+
+                reasons.append(
+                    'Suspicious username pattern detected'
+                )
+
+        # SPAM KEYWORDS
+        for word in spam_keywords:
+
+            if word in text_lower:
+
+                rule_score += 20
+
+                reasons.append(
+                    f'Suspicious keyword detected: {word}'
+                )
+
+        # FOLLOWERS CHECK
+        follower_match = re.search(
+            r'(\d+)\sfollowers',
+            text_lower
+        )
+
+        if follower_match:
+
+            followers = int(
+                follower_match.group(1)
+            )
+
+            if followers < 20:
+
+                rule_score += 15
+
+                reasons.append(
+                    'Very low followers count'
+                )
+
+        # -----------------------------
+        # AI ANALYSIS
+        # -----------------------------
+
+        if model and vectorizer:
+
+            transformed_text = vectorizer.transform([
+                text_lower
+            ])
+
+            prediction = model.predict(
+                transformed_text
+            )[0]
+
+            probability = model.predict_proba(
+                transformed_text
+            )[0]
+
+            ai_score = round(
+                max(probability) * 100,
+                2
+            )
+
+            reasons.append(
+                'AI NLP profile analysis completed'
+            )
+
+        else:
+
+            ai_score = 0
+
+            reasons.append(
+                'AI model unavailable'
+            )
+
+        # -----------------------------
+        # HYBRID FINAL SCORE
+        # -----------------------------
+
+        final_score = (
+            rule_score + ai_score
+        ) / 2
+
+        # -----------------------------
+        # CLASSIFICATION
+        # -----------------------------
+
+        if final_score >= 55:
+
+            classification = 'FAKE PROFILE'
+
+        elif final_score >= 30:
+
+            classification = 'SUSPICIOUS'
+
+        else:
+
+            classification = 'REAL PROFILE'
+
+        # -----------------------------
+        # RESPONSE
+        # -----------------------------
+
+        return jsonify({
+
+            'classification': classification,
+
+            'risk_score': round(
+                final_score,
+                2
+            ),
+
+            'rule_score': rule_score,
+
+            'ai_score': ai_score,
+
+            'reasons': reasons,
+
+            'extracted_text': extracted_text
+        })
+
+    except Exception as e:
+
+        return jsonify({
+
+            'error': str(e)
+        }), 500
+
+# -----------------------------
+# MAIN
+# -----------------------------
 
 if __name__ == '__main__':
-    # Dynamic port extraction for Railway, falling back to 5000 locally
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+
+    port = int(
+        os.environ.get("PORT", 5000)
+    )
+
+    app.run(
+        host='0.0.0.0',
+        port=port
+    )
